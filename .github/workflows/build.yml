@@ -1,0 +1,31 @@
+name: Compilar SantiStrip (Windows)
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Bajar el codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar
+        run: cmake -B build -A x64
+
+      - name: Compilar
+        run: cmake --build build --config Release --parallel
+
+      - name: Juntar los archivos
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item -Recurse "build/SantiStrip_artefacts/Release/VST3/SantiStrip.vst3" dist/
+          Copy-Item "build/SantiStrip_artefacts/Release/Standalone/SantiStrip.exe" dist/
+
+      - name: Subir el resultado
+        uses: actions/upload-artifact@v4
+        with:
+          name: SantiStrip-Windows
+          path: dist
