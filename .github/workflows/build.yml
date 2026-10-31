@@ -1,4 +1,4 @@
-name: Compilar SantiStrip (Windows)
+name: Compilar CHETO (Windows)
 
 on:
   push:
@@ -21,11 +21,12 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Copy-Item -Recurse "build/SantiStrip_artefacts/Release/VST3/SantiStrip.vst3" dist/
-          Copy-Item "build/SantiStrip_artefacts/Release/Standalone/SantiStrip.exe" dist/
+          Copy-Item -Recurse "build/CHETO_artefacts/Release/VST3/CHETO.vst3" dist/
+          Copy-Item "build/CHETO_artefacts/Release/Standalone/CHETO.exe" dist/
+          Get-ChildItem -Recurse dist | Select-Object FullName
 
       - name: Subir el resultado
         uses: actions/upload-artifact@v4
         with:
-          name: SantiStrip-Windows
+          name: CHETO-Windows
           path: dist
