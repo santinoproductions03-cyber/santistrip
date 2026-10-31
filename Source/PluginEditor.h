@@ -1,43 +1,75 @@
 #pragma once
 
 #include "PluginProcessor.h"
-#include <initializer_list>
+#include "CHETOLookAndFeel.h"
+#include "EqDisplay.h"
 #include <memory>
 #include <vector>
 
-class SantiStripEditor : public juce::AudioProcessorEditor
+class CHETOEditor : public juce::AudioProcessorEditor
 {
 public:
-    explicit SantiStripEditor (SantiStripProcessor&);
-    ~SantiStripEditor() override = default;
+    explicit CHETOEditor (CHETOProcessor&);
+    ~CHETOEditor() override { setLookAndFeel (nullptr); }
 
     void paint (juce::Graphics&) override;
     void resized() override;
 
 private:
+    using SliderAtt = juce::AudioProcessorValueTreeState::SliderAttachment;
+    using ButtonAtt = juce::AudioProcessorValueTreeState::ButtonAttachment;
+    using ComboAtt  = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
+
     struct Knob
     {
         juce::Slider slider;
         juce::Label label;
-        std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachment;
+        std::unique_ptr<SliderAtt> att;
     };
 
-    struct Section
+    struct Combo
     {
-        juce::Label title;
-        juce::ToggleButton power;
-        std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> powerAttachment;
-        bool hasPower = false;
-        std::vector<std::unique_ptr<Knob>> knobs;
-        juce::Rectangle<int> bounds;
+        juce::ComboBox box;
+        juce::Label label;
+        std::unique_ptr<ComboAtt> att;
     };
 
-    Section& addSection (const juce::String& title, const juce::String& powerParamId);
-    void addKnob (Section& section, const juce::String& paramId, const juce::String& text);
-    void layoutRow (juce::Rectangle<int> row, std::initializer_list<int> indices);
+    struct Module
+    {
+        juce::String title;
+        juce::Colour colour;
+        juce::ToggleButton power;
+        std::unique_ptr<ButtonAtt> powerAtt;
+        std::vector<std::unique_ptr<Knob>> knobs;
+        std::vector<std::unique_ptr<Combo>> combos;
+        float minWeight = 0.0f;
+        juce::Rectangle<int> bounds, header;
+    };
 
-    SantiStripProcessor& proc;
-    std::vector<std::unique_ptr<Section>> sections;
+    Module& addModule (const juce::String& title, juce::Colour colour, const juce::String& powerId);
+    void addKnob (Module& m, const juce::String& id, const juce::String& text);
+    void addCombo (Module& m, const juce::String& id, const juce::String& text);
+    void setupKnob (Knob& k, const juce::String& text, juce::Colour colour);
+    void placeKnob (Knob& k, juce::Rectangle<int> cell);
+    void layoutRow (juce::Rectangle<int> row, std::vector<Module*> mods);
+    void selectBand (int band);
+    void drawPanel (juce::Graphics& g, juce::Rectangle<int> r, juce::Colour accent);
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SantiStripEditor)
+    CHETOProcessor& proc;
+    CHETOLookAndFeel lnf;
+    juce::Image logo;
+
+    EqDisplay eqDisplay;
+    std::vector<std::unique_ptr<Module>> modules;
+
+    // Columna izquierda
+    Knob masterKnob, inKnob, outKnob;
+
+    // EQ: cabecera y tira de la banda elegida
+    juce::ToggleButton eqPower { "EQ" }, hpBtn { "HP" }, lpBtn { "LP" }, bandOn;
+    std::unique_ptr<ButtonAtt> eqAtt, hpAtt, lpAtt, bandOnAtt;
+    Knob bandFreq, bandGain, bandQ;
+    int currentBand = 0;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CHETOEditor)
 };
