@@ -30,10 +30,10 @@ public:
         const auto full = getLocalBounds().toFloat();
         plot = full.reduced (8.0f).withTrimmedLeft (26.0f).withTrimmedBottom (16.0f);
 
-        g.setColour (Theme::ink.withAlpha (0.6f));
+        g.setColour (Theme::screen);
         g.fillRoundedRectangle (full, 10.0f);
-        g.setColour (Theme::edge);
-        g.drawRoundedRectangle (full.reduced (0.5f), 10.0f, 1.5f);
+        g.setColour (Theme::ink);
+        g.drawRoundedRectangle (full.reduced (1.5f), 10.0f, 3.0f);
 
         // ---- rejilla ----
         g.setFont (Theme::body (10.5f));
@@ -43,18 +43,18 @@ public:
         for (int i = 0; i < 10; ++i)
         {
             const float x = freqToX (freqs[i]);
-            g.setColour (Theme::edge.withAlpha (0.55f));
+            g.setColour (Theme::screenLine);
             g.drawVerticalLine ((int) x, plot.getY(), plot.getBottom());
-            g.setColour (Theme::dim);
+            g.setColour (Theme::screenText);
             g.drawText (names[i], (int) x - 16, (int) plot.getBottom() + 1, 32, 14, juce::Justification::centred);
         }
 
         for (int db = -18; db <= 18; db += 6)
         {
             const float y = gainToY ((float) db);
-            g.setColour (db == 0 ? Theme::dim.withAlpha (0.6f) : Theme::edge.withAlpha (0.55f));
+            g.setColour (db == 0 ? Theme::screenText.withAlpha (0.55f) : Theme::screenLine);
             g.drawHorizontalLine ((int) y, plot.getX(), plot.getRight());
-            g.setColour (Theme::dim);
+            g.setColour (Theme::screenText);
             g.drawText (db > 0 ? "+" + juce::String (db) : juce::String (db),
                         2, (int) y - 7, 24, 14, juce::Justification::centredRight);
         }
@@ -121,7 +121,7 @@ public:
         fill.lineTo (plot.getRight(), plot.getCentreY());
         fill.closeSubPath();
 
-        const auto lineColour = eqActive ? Theme::yellow : Theme::dim;
+        const auto lineColour = eqActive ? Theme::yellow : Theme::screenText;
         g.setColour (lineColour.withAlpha (eqActive ? 0.16f : 0.06f));
         g.fillPath (fill);
         g.setColour (lineColour.withAlpha (0.22f));
@@ -145,9 +145,9 @@ public:
 
             auto r = juce::Rectangle<float> (p.x - 80.0f, p.y - 40.0f, 160.0f, 20.0f);
             r = r.withPosition (juce::jlimit (plot.getX(), plot.getRight() - 160.0f, r.getX()), juce::jmax (plot.getY(), r.getY()));
-            g.setColour (Theme::ink.withAlpha (0.85f));
+            g.setColour (Theme::cream);
             g.fillRoundedRectangle (r, 6.0f);
-            g.setColour (Theme::text);
+            g.setColour (Theme::ink);
             g.setFont (Theme::body (12.0f, true));
             g.drawText (t, r.toNearestInt(), juce::Justification::centred);
         }
@@ -271,7 +271,7 @@ private:
         const bool isBand = i < 6;
         const bool on = val (isBand ? bandId (i, "On") : (i == 6 ? "hpOn" : "lpOn")) > 0.5f
                         && val ("eqOn") > 0.5f;
-        const auto col = isBand ? Theme::bandColour (i) : Theme::text;
+        const auto col = isBand ? Theme::bandColour (i) : Theme::cream;
         const bool hot = (i == selected) || (i == hoverNode) || (i == dragNode);
 
         if (isBand)
@@ -281,7 +281,7 @@ private:
                 g.setColour (col.withAlpha (0.28f));
                 g.fillEllipse (p.x - 16.0f, p.y - 16.0f, 32.0f, 32.0f);
             }
-            g.setColour (on ? col : Theme::ink.withAlpha (0.8f));
+            g.setColour (on ? col : Theme::screenLine);
             g.fillEllipse (p.x - 9.0f, p.y - 9.0f, 18.0f, 18.0f);
             g.setColour (on ? Theme::ink : col.withAlpha (0.7f));
             g.drawEllipse (p.x - 9.0f, p.y - 9.0f, 18.0f, 18.0f, 2.0f);
@@ -293,11 +293,11 @@ private:
         {
             juce::Path d;
             d.addTriangle (p.x - 8.0f, p.y + 7.0f, p.x + 8.0f, p.y + 7.0f, p.x, p.y - 8.0f);
-            g.setColour (on ? col : Theme::ink.withAlpha (0.8f));
+            g.setColour (on ? col : Theme::screenLine);
             g.fillPath (d);
-            g.setColour (on ? Theme::ink : Theme::dim);
+            g.setColour (on ? Theme::ink : Theme::screenText);
             g.strokePath (d, juce::PathStrokeType (2.0f));
-            g.setColour (Theme::dim);
+            g.setColour (Theme::screenText);
             g.setFont (Theme::body (10.0f, true));
             g.drawText (i == 6 ? "HP" : "LP", (int) p.x - 12, (int) p.y - 24, 24, 12, juce::Justification::centred);
         }

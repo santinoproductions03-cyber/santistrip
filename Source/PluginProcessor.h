@@ -5,6 +5,7 @@
 #include <array>
 #include <atomic>
 #include "Autotune.h"
+#include "NoiseReducer.h"
 
 class CHETOProcessor : public juce::AudioProcessor, private juce::AsyncUpdater
 {
@@ -68,6 +69,11 @@ private:
     AutoTuner tuner;
     bool lastAutotuneOn = false;
     std::atomic<int> wantedLatency { 0 };
+    int lastLatency = 0;
+
+    // Reductor de ruido
+    NoiseReducer denoiser;
+    bool lastNrOn = false;
 
     // EQ pro
     std::array<Slot, numBands> eq;

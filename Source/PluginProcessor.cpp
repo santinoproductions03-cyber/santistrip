@@ -73,6 +73,12 @@ Layout CHETOProcessor::createLayout()
     addFloat (l, "inGain",  "Ganancia de entrada", -24.0f, 24.0f, 0.0f, " dB");
     addFloat (l, "outGain", "Ganancia de salida",  -24.0f, 24.0f, 0.0f, " dB");
 
+    // Reductor de ruido
+    addBool  (l, "nrOn", "Anti-ruido activo", false);
+    addFloat (l, "nrAmount", "Anti-ruido Reduccion", 0.0f, 100.0f, 50.0f, " %");
+    addFloat (l, "nrSens",   "Anti-ruido Sensibilidad", 0.0f, 100.0f, 50.0f, " %");
+    addBool  (l, "nrFreeze", "Anti-ruido Fijar", false);
+
     // Autotune
     addBool   (l, "atOn", "Autotune activo", false);
     addChoice (l, "atKey", "Autotune Nota", { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" }, 0);
@@ -203,6 +209,9 @@ void CHETOProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     reverb.reset();
 
     tuner.prepare (sampleRate);
+    denoiser.prepare (sampleRate);
+    lastNrOn = false;
+    lastLatency = 0;
     lastAutotuneOn = false;
     wantedLatency = 0;
     setLatencySamples (0);
@@ -249,16 +258,42 @@ void CHETOProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiB
     juce::dsp::AudioBlock<float> block (buffer);
     juce::dsp::ProcessContextReplacing<float> ctx (block);
 
+    // ---- Reductor de ruido (y aviso de latencia total al host) ----
+    const bool nrOn = param ("nrOn") > 0.5f;
+    const bool atNow = param ("atOn") > 0.5f;
+    {
+        const int wanted = (nrOn ? NoiseReducer::latency : 0) + (atNow ? AutoTuner::latency : 0);
+        if (wanted != lastLatency)
+        {
+            lastLatency = wanted;
+            wantedLatency = wanted;
+            triggerAsyncUpdate();
+        }
+
+        if (nrOn != lastNrOn)
+        {
+            lastNrOn = nrOn;
+            if (! nrOn) denoiser.reset();
+        }
+
+        if (nrOn)
+        {
+            NoiseReducer::Settings ns;
+            ns.reductionDb = param ("nrAmount") * 0.3f;
+            ns.sens   = param ("nrSens") * 0.01f;
+            ns.freeze = param ("nrFreeze") > 0.5f;
+            denoiser.process (buffer.getArrayOfWritePointers(), numCh, n, ns);
+        }
+    }
+
     // ---- Autotune ----
     {
-        const bool on = param ("atOn") > 0.5f;
+        const bool on = atNow;
 
         if (on != lastAutotuneOn)
         {
             lastAutotuneOn = on;
             if (! on) tuner.reset();
-            wantedLatency = on ? AutoTuner::latency : 0;
-            triggerAsyncUpdate();
         }
 
         if (on)

@@ -40,6 +40,9 @@ private:
         juce::Colour colour;
         juce::ToggleButton power;
         std::unique_ptr<ButtonAtt> powerAtt;
+        juce::ToggleButton chip;
+        std::unique_ptr<ButtonAtt> chipAtt;
+        bool hasChip = false;
         std::vector<std::unique_ptr<Knob>> knobs;
         std::vector<std::unique_ptr<Combo>> combos;
         float minWeight = 0.0f;
@@ -47,13 +50,15 @@ private:
     };
 
     Module& addModule (const juce::String& title, juce::Colour colour, const juce::String& powerId);
+    void addChip (Module& m, const juce::String& id, const juce::String& text);
     void addKnob (Module& m, const juce::String& id, const juce::String& text);
     void addCombo (Module& m, const juce::String& id, const juce::String& text);
     void setupKnob (Knob& k, const juce::String& text, juce::Colour colour);
     void placeKnob (Knob& k, juce::Rectangle<int> cell);
     void layoutRow (juce::Rectangle<int> row, std::vector<Module*> mods);
     void selectBand (int band);
-    void drawPanel (juce::Graphics& g, juce::Rectangle<int> r, juce::Colour accent);
+    void drawPanel (juce::Graphics& g, juce::Rectangle<int> r, juce::Colour accent, int bandHeight);
+    void drawWordmark (juce::Graphics& g, float x, float y, float h);
 
     CHETOProcessor& proc;
     CHETOLookAndFeel lnf;

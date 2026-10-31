@@ -38,6 +38,7 @@ target_sources(CHETO PRIVATE
     Source/PluginEditor.cpp
     Source/PluginEditor.h
     Source/Autotune.h
+    Source/NoiseReducer.h
     Source/EqDisplay.h
     Source/Theme.h
     Source/CHETOLookAndFeel.h)
