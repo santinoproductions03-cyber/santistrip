@@ -6,6 +6,8 @@
 #include <atomic>
 #include "Autotune.h"
 #include "NoiseReducer.h"
+#include "DeReverb.h"
+#include "Mastering.h"
 
 class CHETOProcessor : public juce::AudioProcessor, private juce::AsyncUpdater
 {
@@ -47,6 +49,11 @@ public:
     void readScope (float* dest) const;
     double getCurrentSampleRate() const { return currentSr; }
 
+    // Datos del master automatico para el dibujo (los lee el editor)
+    float getMasterBandDiff (int i) const { return uiBandDiff[(size_t) i].load(); }
+    float getMasterLufs() const { return uiLufs.load(); }
+    float getMasterGain() const { return uiGain.load(); }
+
     juce::AudioProcessorValueTreeState apvts;
 
 private:
@@ -71,9 +78,23 @@ private:
     std::atomic<int> wantedLatency { 0 };
     int lastLatency = 0;
 
-    // Reductor de ruido
+    // Reductor de ruido y quita-reverb
     NoiseReducer denoiser;
     bool lastNrOn = false;
+    DeReverb dereverb;
+    bool lastDrOn = false;
+
+    // Master automatico
+    MasterAnalyzer mAnalyzer;
+    LoudnessMeter meterA, meterB;
+    std::array<Slot, 6> mstEq;
+    std::array<float, 6> mstCorrSm {};
+    juce::dsp::Compressor<float> mstComp;
+    juce::dsp::Limiter<float> mstLimiter;
+    float mstGainDb = 0.0f, prevMstGain = 1.0f;
+    std::array<std::atomic<float>, 10> uiBandDiff {};
+    std::atomic<float> uiLufs { -70.0f };
+    std::atomic<float> uiGain { 0.0f };
 
     // EQ pro
     std::array<Slot, numBands> eq;

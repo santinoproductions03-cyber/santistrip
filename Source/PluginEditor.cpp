@@ -5,13 +5,14 @@ namespace
 {
     const juce::Rectangle<int> masterPanel { 14, 140, 230, 382 };
     const juce::Rectangle<int> eqPanel     { 256, 140, 910, 382 };
-    const juce::Rectangle<int> rowA        { 14, 532, 1152, 144 };
-    const juce::Rectangle<int> rowB        { 14, 684, 1152, 136 };
+    const juce::Rectangle<int> aiPanel     { 1178, 140, 308, 382 };
+    const juce::Rectangle<int> rowA        { 14, 532, 1472, 144 };
+    const juce::Rectangle<int> rowB        { 14, 684, 1472, 136 };
     constexpr int bandH = 38;
 }
 
 CHETOEditor::CHETOEditor (CHETOProcessor& p)
-    : juce::AudioProcessorEditor (&p), proc (p), eqDisplay (p)
+    : juce::AudioProcessorEditor (&p), proc (p), eqDisplay (p), masterDisplay (p)
 {
     setLookAndFeel (&lnf);
     logo = juce::ImageFileFormat::loadFrom (BinaryData::logo_png, (size_t) BinaryData::logo_pngSize);
@@ -65,18 +66,23 @@ CHETOEditor::CHETOEditor (CHETOProcessor& p)
     addKnob (sat, "satDrive", "Drive");
     addKnob (sat, "satMix", "Mezcla");
 
-    auto& nr = addModule ("ANTI-RUIDO", Theme::sky, "nrOn");
+    auto& nr = addModule ("ANTI-RUIDO", Theme::teal, "nrOn");
     nr.minWeight = 2.6f;
     addChip (nr, "nrFreeze", "FIJAR");
     addKnob (nr, "nrAmount", "Reduccion");
     addKnob (nr, "nrSens", "Sensibilidad");
+
+    auto& dr = addModule ("QUITA-REVERB", Theme::violet, "drOn");
+    dr.minWeight = 2.6f;
+    addKnob (dr, "drAmount", "Cantidad");
+    addKnob (dr, "drRoom", "Cuarto");
 
     auto& bc = addModule ("BITCRUSHER", Theme::mint, "bcOn");
     addKnob (bc, "bcBits", "Bits");
     addKnob (bc, "bcRate", "Reduccion");
     addKnob (bc, "bcMix", "Mezcla");
 
-    auto& dly = addModule ("DELAY", Theme::violet, "dlyOn");
+    auto& dly = addModule ("DELAY", Theme::sky, "dlyOn");
     addKnob (dly, "dlyTime", "Tiempo");
     addKnob (dly, "dlyFeedback", "Feedback");
     addKnob (dly, "dlyMix", "Mezcla");
@@ -90,7 +96,17 @@ CHETOEditor::CHETOEditor (CHETOProcessor& p)
     lim.minWeight = 1.5f;
     addKnob (lim, "limCeiling", "Techo");
 
-    setSize (1180, 840);
+    // MASTER automatico (panel de la derecha)
+    auto& ai = addModule ("MASTER", Theme::green, "mstOn");
+    addChip (ai, "mstFreeze", "FIJAR");
+    addKnob (ai, "mstAmount", "MAESTRA");
+    addKnob (ai, "mstTone", "Tono");
+    addKnob (ai, "mstLoud", "Volumen");
+    ai.knobs[0]->slider.getProperties().set ("big", true);
+    ai.knobs[0]->slider.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
+    addAndMakeVisible (masterDisplay);
+
+    setSize (1500, 840);
 }
 
 //==============================================================================
@@ -314,7 +330,8 @@ void CHETOEditor::paint (juce::Graphics& g)
     {
         struct Pill { const char* t; juce::Colour c; };
         const Pill pills[] = { { "EQ PRO", Theme::yellow }, { "AUTOTUNE", Theme::pink }, { "ANTI-RUIDO", Theme::sky },
-                               { "BITCRUSHER", Theme::mint }, { "COMPRESOR", Theme::teal } };
+                               { "QUITA-REVERB", Theme::violet }, { "MASTER", Theme::green }, { "BITCRUSHER", Theme::mint },
+                               { "COMPRESOR", Theme::teal } };
 
         float px = 700.0f;
         g.setFont (Theme::body (11.5f, true));
@@ -461,8 +478,33 @@ void CHETOEditor::resized()
     placeKnob (bandGain, { eqPanel.getX() + 326, sy, 120, 80 });
     placeKnob (bandQ,    { eqPanel.getX() + 456, sy, 120, 80 });
 
-    // modulos: 0 autotune, 1 compresor, 2 saturador, 3 anti-ruido, 4 bitcrusher, 5 delay, 6 reverb, 7 limitador
+    // modulos: 0 autotune, 1 compresor, 2 saturador, 3 anti-ruido, 4 quita-reverb, 5 bitcrusher,
+    //          6 delay, 7 reverb, 8 limitador, 9 master
     auto get = [this] (size_t i) { return modules[i].get(); };
     layoutRow (rowA, { get (0), get (1), get (2) });
-    layoutRow (rowB, { get (3), get (4), get (5), get (6), get (7) });
+    layoutRow (rowB, { get (3), get (4), get (5), get (6), get (7), get (8) });
+
+    // panel MASTER (a mano)
+    {
+        auto& ai = *modules[9];
+        ai.bounds = aiPanel;
+
+        auto inner = ai.bounds.reduced (12, 7);
+        ai.header = inner.removeFromTop (bandH - 7 - 4);
+
+        auto hd = ai.header;
+        ai.power.setBounds (hd.removeFromLeft (38));
+        ai.chip.setBounds (hd.removeFromRight (60).reduced (0, 1));
+
+        inner.removeFromTop (10);
+        masterDisplay.setBounds (inner.removeFromTop (130));
+        inner.removeFromTop (6);
+
+        auto big = inner.removeFromLeft (150);
+        placeKnob (*ai.knobs[0], big);
+
+        auto right = inner.withTrimmedLeft (4);
+        placeKnob (*ai.knobs[1], right.removeFromTop (right.getHeight() / 2));
+        placeKnob (*ai.knobs[2], right);
+    }
 }

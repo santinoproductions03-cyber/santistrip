@@ -3,6 +3,7 @@
 #include "PluginProcessor.h"
 #include "CHETOLookAndFeel.h"
 #include "EqDisplay.h"
+#include "MasterDisplay.h"
 #include <memory>
 #include <vector>
 
@@ -65,6 +66,7 @@ private:
     juce::Image logo;
 
     EqDisplay eqDisplay;
+    MasterDisplay masterDisplay;
     std::vector<std::unique_ptr<Module>> modules;
 
     // Columna izquierda

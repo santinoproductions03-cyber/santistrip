@@ -79,6 +79,18 @@ Layout CHETOProcessor::createLayout()
     addFloat (l, "nrSens",   "Anti-ruido Sensibilidad", 0.0f, 100.0f, 50.0f, " %");
     addBool  (l, "nrFreeze", "Anti-ruido Fijar", false);
 
+    // Quita-reverb
+    addBool  (l, "drOn", "Quita-reverb activo", false);
+    addFloat (l, "drAmount", "Quita-reverb Cantidad", 0.0f, 100.0f, 50.0f, " %");
+    addFloat (l, "drRoom",   "Quita-reverb Cuarto", 0.2f, 2.5f, 0.8f, " s", 0.8f);
+
+    // Master automatico
+    addBool  (l, "mstOn", "Master activo", true);
+    addFloat (l, "mstAmount", "Master Maestra", 0.0f, 100.0f, 0.0f, " %");
+    addFloat (l, "mstTone",   "Master Tono", -100.0f, 100.0f, 0.0f, " %");
+    addFloat (l, "mstLoud",   "Master Volumen", 0.0f, 100.0f, 50.0f, " %");
+    addBool  (l, "mstFreeze", "Master Fijar", false);
+
     // Autotune
     addBool   (l, "atOn", "Autotune activo", false);
     addChoice (l, "atKey", "Autotune Nota", { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" }, 0);
@@ -210,6 +222,18 @@ void CHETOProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 
     tuner.prepare (sampleRate);
     denoiser.prepare (sampleRate);
+    dereverb.prepare (sampleRate);
+    lastDrOn = false;
+
+    for (auto& s : mstEq) prep (s);
+    mstComp.prepare (spec);    mstComp.reset();
+    mstLimiter.prepare (spec); mstLimiter.reset();
+    mAnalyzer.prepare (sampleRate);
+    meterA.prepare (sampleRate);
+    meterB.prepare (sampleRate);
+    mstCorrSm.fill (0.0f);
+    mstGainDb = 0.0f;
+    prevMstGain = 1.0f;
     lastNrOn = false;
     lastLatency = 0;
     lastAutotuneOn = false;
@@ -262,7 +286,9 @@ void CHETOProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiB
     const bool nrOn = param ("nrOn") > 0.5f;
     const bool atNow = param ("atOn") > 0.5f;
     {
-        const int wanted = (nrOn ? NoiseReducer::latency : 0) + (atNow ? AutoTuner::latency : 0);
+        const bool drOn = param ("drOn") > 0.5f;
+        const int wanted = (nrOn ? NoiseReducer::latency : 0) + (drOn ? DeReverb::latency : 0)
+                         + (atNow ? AutoTuner::latency : 0);
         if (wanted != lastLatency)
         {
             lastLatency = wanted;
@@ -283,6 +309,20 @@ void CHETOProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiB
             ns.sens   = param ("nrSens") * 0.01f;
             ns.freeze = param ("nrFreeze") > 0.5f;
             denoiser.process (buffer.getArrayOfWritePointers(), numCh, n, ns);
+        }
+
+        if (drOn != lastDrOn)
+        {
+            lastDrOn = drOn;
+            if (! drOn) dereverb.reset();
+        }
+
+        if (drOn)
+        {
+            DeReverb::Settings ds;
+            ds.amount = param ("drAmount") * 0.01f;
+            ds.roomSeconds = param ("drRoom");
+            dereverb.process (buffer.getArrayOfWritePointers(), numCh, n, ds);
         }
     }
 
@@ -520,6 +560,82 @@ void CHETOProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiB
             buffer.applyGainRamp (0, n, prevEnhGain, 1.0f);
             prevEnhGain = 1.0f;
         }
+    }
+
+    // ---- MASTER: analiza el tema y lo masteriza (EQ de balance + pegamento + volumen + tope) ----
+    if (param ("mstOn") > 0.5f)
+    {
+        const float amount = param ("mstAmount") * 0.01f;
+        const float tone   = param ("mstTone") * 0.01f;
+        const float loud01 = param ("mstLoud") * 0.01f;
+        const bool freeze  = param ("mstFreeze") > 0.5f;
+        const float blockSec = (float) n / (float) sr;
+
+        // 1) analisis del tema (aprende mientras suena)
+        mAnalyzer.push (buffer.getArrayOfReadPointers(), numCh, n, freeze);
+
+        float corr[6];
+        mAnalyzer.corrections (amount, tone, corr);
+
+        const float smoothK = 1.0f - std::exp (-blockSec / 0.6f);
+        for (size_t g = 0; g < 6; ++g)
+            mstCorrSm[g] += (corr[g] - mstCorrSm[g]) * smoothK;
+
+        // 2) EQ de balance tonal
+        static const float eqFreq[6] = { 90.0f, 190.0f, 500.0f, 1500.0f, 4000.0f, 9000.0f };
+        static const float eqQ[6]    = { 0.7f, 0.8f, 0.8f, 0.7f, 0.8f, 0.7f };
+
+        for (int g = 0; g < 6; ++g)
+        {
+            const float db = std::round (mstCorrSm[(size_t) g] * 20.0f) / 20.0f;
+            if (std::abs (db) < 0.04f) continue;
+
+            const float f = eqFreq[g], q = eqQ[g];
+            setCoeffs (mstEq[(size_t) g], db, 0.0f, 0.0f, [&]
+            {
+                if (g == 0) return Coeffs::makeLowShelf  (sr, f, q, dbToGain (db));
+                if (g == 5) return Coeffs::makeHighShelf (sr, f, q, dbToGain (db));
+                return Coeffs::makePeakFilter (sr, f, q, dbToGain (db));
+            });
+            mstEq[(size_t) g].filter.process (ctx);
+        }
+
+        // 3) pegamento: el umbral sale de la sonoridad medida del tema
+        meterA.process (buffer.getArrayOfReadPointers(), numCh, n, freeze);
+        const float lufsA = meterA.getLufs();
+        const float thr = lufsA > -60.0f ? juce::jlimit (-40.0f, -6.0f, lufsA + 4.0f) : -18.0f;
+
+        if (amount > 0.001f)
+        {
+            mstComp.setThreshold (thr);
+            mstComp.setRatio (1.0f + 1.2f * amount);
+            mstComp.setAttack (30.0f);
+            mstComp.setRelease (160.0f);
+            mstComp.process (ctx);
+        }
+
+        // 4) volumen: lleva el tema a la sonoridad objetivo
+        meterB.process (buffer.getArrayOfReadPointers(), numCh, n, freeze);
+        const float lufsB = meterB.getLufs();
+        const float target = -18.0f + 10.0f * loud01;
+        float needed = lufsB > -60.0f ? juce::jlimit (-10.0f, 12.0f, target - lufsB) : 0.0f;
+        needed *= amount;
+
+        if (! freeze)
+            mstGainDb += (needed - mstGainDb) * (1.0f - std::exp (-blockSec / 2.0f));
+
+        const float mg = dbToGain (mstGainDb);
+        buffer.applyGainRamp (0, n, prevMstGain, mg);
+        prevMstGain = mg;
+
+        // 5) tope para que no pase de -1 dB
+        mstLimiter.setThreshold (-1.0f);
+        mstLimiter.setRelease (80.0f);
+        mstLimiter.process (ctx);
+
+        for (size_t i = 0; i < 10; ++i) uiBandDiff[i].store (mAnalyzer.bandDiffDb ((int) i));
+        uiLufs.store (lufsB);
+        uiGain.store (mstGainDb);
     }
 
     // ---- Ganancia de salida ----

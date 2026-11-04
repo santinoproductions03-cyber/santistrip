@@ -4,23 +4,29 @@ Un solo plugin con todo adentro. Cadena de efectos, en este orden:
 
 1. **Entrada** (ganancia)
 2. **Anti-ruido** (reductor de ruido)
-3. **Autotune** (nota, escala, velocidad, cantidad)
-4. **EQ Pro** estilo Pro-Q: 6 bandas + corte de graves (HP) + corte de agudos (LP), con espectro en vivo
-5. **Compresor** (con mezcla paralela)
-6. **Saturador**
-7. **Bitcrusher** (bits, reduccion de muestreo, mezcla)
-8. **Delay**
-9. **Reverb**
-10. **MEJORAR TODO** (la perilla grande): una mini masterizacion automatica
-11. **Salida** y **Limitador**
+3. **Quita-reverb** (saca el eco del cuarto donde se grabo)
+4. **Autotune** (nota, escala, velocidad, cantidad)
+5. **EQ Pro** estilo Pro-Q: 6 bandas + corte de graves (HP) + corte de agudos (LP), con espectro en vivo
+6. **Compresor** (con mezcla paralela)
+7. **Saturador**
+8. **Bitcrusher** (bits, reduccion de muestreo, mezcla)
+9. **Delay**
+10. **Reverb**
+11. **MEJORAR TODO** (la perilla grande de la izquierda): mejora general del sonido
+12. **MASTER** (el panel de la derecha): analiza el tema y lo masteriza
+13. **Salida** y **Limitador**
 
-Cada modulo tiene su interruptor de encendido. El plugin arranca "limpio": autotune y anti-ruido apagados, y saturador / bitcrusher / delay / reverb con la mezcla en 0.
+Cada modulo tiene su interruptor de encendido. El plugin arranca "limpio": autotune, anti-ruido y quita-reverb apagados, MAESTRA en 0, y saturador / bitcrusher / delay / reverb con la mezcla en 0.
 
 ## Como usar lo principal
 
 - **MEJORAR TODO**: subila de a poco. Limpia graves que no sirven, baja el "barro", suma presencia y aire, pega un poco con compresion suave y agrega un toque de saturacion. Es un arreglo general, no hace magia: si el sonido tiene un problema grande, conviene corregirlo con el EQ.
 - **EQ Pro**: arrastra los puntos (izquierda/derecha = frecuencia, arriba/abajo = ganancia). Rueda del mouse sobre un punto = ancho (Q). Doble click en un punto = prender/apagar esa banda. Abajo salen las perillas de la banda elegida.
 - **Anti-ruido**: prendelo y dejalo aprender el ruido de fondo (soplido, zumbido, ventilador). Ideal si al principio hay un momento de solo ruido. **Reduccion** = cuantos dB baja el ruido. **Sensibilidad** = que tan agresivo es (muy alto puede hacer sonar la voz "metalica"). **FIJAR** congela lo que aprendio: usalo cuando el ruido ya esta aprendido y tenes sonidos sostenidos (notas largas, pads) que no queres que se coma. Mete unos 23 ms de latencia mientras esta prendido; FL lo compensa solo.
+- **Quita-reverb**: prendelo y subi **Cantidad** hasta que el eco del cuarto baje sin que la voz suene rara. **Cuarto** = que tan grande/reverberante era el lugar de grabacion (mas grande = cola mas larga que sacar). Funciona mejor con voz o instrumentos solos. Mete unos 23 ms de latencia mientras esta prendido.
+- **MASTER**: tres perillas y nada mas. **MAESTRA** es la importante: analiza el tema mientras suena (balance de graves/medios/agudos y sonoridad), y en base a eso corrige el balance con un EQ suave, pega todo con compresion y sube el volumen hasta la sonoridad objetivo, con un tope en -1 dB para que no distorsione. **TONO** lo hace mas calido (izquierda) o mas brillante (derecha). **VOLUMEN** elige que tan fuerte lo queres (centro = sonoridad tipo streaming). La pantallita muestra la sonoridad medida (LUFS), la ganancia aplicada y que tan lejos esta cada banda del balance de referencia (barra arriba = sobra, abajo = falta). **FIJAR** congela lo analizado.
+  - Para que analice bien, pone el plugin en el master de FL y deja sonar el tema unos segundos (cuanto mas suena, mas aprende). Para exportar, conviene escucharlo una vez entero antes y despues dar FIJAR, asi el render sale parejo.
+  - Es un master automatico generico (no distingue de genero ni reemplaza a un ingeniero de mastering). Si un tema ya tiene un balance muy particular a proposito, bajale la MAESTRA.
 - **Autotune**: prendelo, elegi la nota y la escala de tu tema. **Velocidad** al 0% = efecto robot (estilo T-Pain); mas alto = correccion mas natural. **Cantidad** = cuanto se corrige. Funciona para una sola voz (monofonica). Mete unos 23 ms de latencia mientras esta prendido; FL lo compensa solo.
 
 ## Como obtener el .vst3 (sin instalar nada)
